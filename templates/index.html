@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">Share Food, Share Hope</h1>
+                <p class="lead mb-4">
+                    Connect hotels and restaurants with surplus food to communities in need. 
+                    Reduce waste, feed people, build community.
+                </p>
+                <div class="d-flex gap-3">
+                    {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('register') }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Get Started
+                    </a>
+                    <a href="{{ url_for('map_view') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-map-marker-alt me-2"></i>View Map
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-lg">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                    <a href="{{ url_for('map_view') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-map-marker-alt me-2"></i>View Map
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-6 text-center">
+                <i class="fas fa-hands-helping text-white" style="font-size: 8rem; opacity: 0.8;"></i>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Statistics Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <i class="fas fa-utensils text-primary" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">{{ total_listings }}</h3>
+                        <p class="text-muted">Food Listings</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <i class="fas fa-hand-holding-heart text-success" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">{{ total_requests }}</h3>
+                        <p class="text-muted">Food Requests</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <i class="fas fa-check-circle text-info" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">{{ total_collected }}</h3>
+                        <p class="text-muted">Meals Shared</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <i class="fas fa-recycle text-warning" style="font-size: 3rem;"></i>
+                        <h3 class="mt-3">{{ ((total_collected / total_listings) * 100) | round(1) if total_listings > 0 else 0 }}%</h3>
+                        <p class="text-muted">Waste Reduced</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Recent Food Listings -->
+{% if recent_listings %}
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">Recent Food Available</h2>
+        <div class="row">
+            {% for listing in recent_listings %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card food-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title">{{ listing.title }}</h5>
+                            <span class="badge bg-success status-badge">{{ listing.status.title() }}</span>
+                        </div>
+                        
+                        <p class="card-text text-muted">{{ listing.description[:100] }}{% if listing.description|length > 100 %}...{% endif %}</p>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-utensils me-1"></i>{{ listing.food_type.title() }}
+                                <span class="mx-2">•</span>
+                                <i class="fas fa-leaf me-1"></i>{{ listing.category.title() }}
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-weight me-1"></i>Quantity: {{ listing.quantity }}
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-map-marker-alt me-1"></i>{{ listing.pickup_location }}
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <small class="text-warning">
+                                <i class="fas fa-clock me-1"></i>
+                                Expires: {{ listing.expiry_time.strftime('%Y-%m-%d %H:%M') }}
+                            </small>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                by {{ listing.hotel.username }}
+                                {% if listing.hotel.is_verified %}
+                                <i class="fas fa-check-circle text-primary" title="Verified"></i>
+                                {% endif %}
+                            </small>
+                            <a href="{{ url_for('food_details', food_id=listing.id) }}" class="btn btn-primary btn-sm">
+                                View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="text-center">
+            <a href="{{ url_for('map_view') }}" class="btn btn-primary">
+                <i class="fas fa-map me-2"></i>View All on Map
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- How It Works -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">How It Works</h2>
+        <div class="row">
+            <div class="col-md-4 text-center mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <i class="fas fa-hotel text-primary" style="font-size: 3rem;"></i>
+                        <h4 class="mt-3">1. Hotels Post Food</h4>
+                        <p>Restaurants and hotels post surplus food available for donation</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <i class="fas fa-search text-success" style="font-size: 3rem;"></i>
+                        <h4 class="mt-3">2. Collectors Browse</h4>
+                        <p>NGOs and volunteers find nearby food available for collection</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-center mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <i class="fas fa-handshake text-info" style="font-size: 3rem;"></i>
+                        <h4 class="mt-3">3. Connect & Share</h4>
+                        <p>Food is collected and shared with communities in need</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action -->
+{% if not current_user.is_authenticated %}
+<section class="bg-primary text-white py-5">
+    <div class="container text-center">
+        <h2 class="mb-4">Ready to Make a Difference?</h2>
+        <p class="lead mb-4">Join our community of food sharers and help reduce waste while feeding those in need.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="{{ url_for('register') }}?type=hotel" class="btn btn-light btn-lg">
+                <i class="fas fa-hotel me-2"></i>Register as Hotel
+            </a>
+            <a href="{{ url_for('register') }}?type=collector" class="btn btn-outline-light btn-lg">
+                <i class="fas fa-hands-helping me-2"></i>Register as Collector
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

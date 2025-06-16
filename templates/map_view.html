@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}Map View - ShareMeal{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Sidebar with filters and listings -->
+        <div class="col-lg-4 col-xl-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>Filter & Search
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Search -->
+                    <div class="mb-3">
+                        <label for="searchInput" class="form-label">Search Food</label>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search by title or description...">
+                    </div>
+                    
+                    <!-- Food Type Filter -->
+                    <div class="mb-3">
+                        <label for="foodTypeFilter" class="form-label">Food Type</label>
+                        <select class="form-control" id="foodTypeFilter">
+                            <option value="">All Types</option>
+                            <option value="prepared">Prepared Food</option>
+                            <option value="raw">Raw Ingredients</option>
+                            <option value="packaged">Packaged Food</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Category Filter -->
+                    <div class="mb-3">
+                        <label for="categoryFilter" class="form-label">Category</label>
+                        <select class="form-control" id="categoryFilter">
+                            <option value="">All Categories</option>
+                            <option value="vegetarian">Vegetarian</option>
+                            <option value="non-vegetarian">Non-Vegetarian</option>
+                            <option value="vegan">Vegan</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Distance Filter -->
+                    {% if current_user.is_authenticated and current_user.latitude and current_user.longitude %}
+                    <div class="mb-3">
+                        <label for="distanceFilter" class="form-label">Max Distance</label>
+                        <select class="form-control" id="distanceFilter">
+                            <option value="">Any Distance</option>
+                            <option value="5">Within 5 km</option>
+                            <option value="10">Within 10 km</option>
+                            <option value="25">Within 25 km</option>
+                            <option value="50">Within 50 km</option>
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Clear Filters -->
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                        <i class="fas fa-times me-1"></i>Clear Filters
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Listings List -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Available Food
+                        <span class="badge bg-success ms-2" id="listingCount">0</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;">
+                    <div id="foodListings">
+                        <!-- Listings will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Food List -->
+        <div class="col-lg-8 col-xl-9">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Food Listings with Locations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="foodCardsContainer">
+                        <!-- Food cards will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Food Detail Modal -->
+<div class="modal fade" id="foodDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <!-- Footer will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let foodListings = [];
+
+// User location (if available)
+const userLocation = {
+    {% if current_user.is_authenticated and current_user.latitude and current_user.longitude %}
+    lat: {{ current_user.latitude }},
+    lng: {{ current_user.longitude }}
+    {% else %}
+    lat: null,
+    lng: null
+    {% endif %}
+};
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadFoodListings();
+    
+    // Set up event listeners
+    document.getElementById('searchInput').addEventListener('input', filterListings);
+    document.getElementById('foodTypeFilter').addEventListener('change', filterListings);
+    document.getElementById('categoryFilter').addEventListener('change', filterListings);
+    {% if current_user.is_authenticated and current_user.latitude and current_user.longitude %}
+    document.getElementById('distanceFilter').addEventListener('change', filterListings);
+    {% endif %}
+});
+
+function loadFoodListings() {
+    fetch('/api/food-listings')
+        .then(response => response.json())
+        .then(data => {
+            foodListings = data;
+            displayListings(data);
+            displayFoodCards(data);
+            updateListingCount(data.length);
+        })
+        .catch(error => {
+            console.error('Error loading food listings:', error);
+            document.getElementById('foodListings').innerHTML = 
+                '<div class="p-3 text-center text-muted">Error loading food listings</div>';
+        });
+}
+
+function displayListings(listings) {
+    const container = document.getElementById('foodListings');
+    
+    if (listings.length === 0) {
+        container.innerHTML = `
+            <div class="p-3 text-center text-muted">
+                <i class="fas fa-search" style="font-size: 2rem;"></i>
+                <h6 class="mt-2">No food found</h6>
+                <p class="mb-0">Try adjusting your filters</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = listings.map(listing => `
+        <div class="listing-item p-3 border-bottom" data-id="${listing.id}">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="mb-0">${listing.title}</h6>
+                <span class="badge bg-success">Available</span>
+            </div>
+            
+            ${listing.description ? `<p class="text-muted small mb-2">${listing.description.substring(0, 80)}${listing.description.length > 80 ? '...' : ''}</p>` : ''}
+            
+            <div class="mb-2">
+                <small class="text-muted">
+                    <i class="fas fa-utensils me-1"></i>${listing.food_type.charAt(0).toUpperCase() + listing.food_type.slice(1)}
+                    <span class="mx-1">•</span>
+                    <i class="fas fa-leaf me-1"></i>${listing.category.charAt(0).toUpperCase() + listing.category.slice(1)}
+                </small>
+            </div>
+            
+            <div class="mb-2">
+                <small class="text-muted">
+                    <i class="fas fa-weight me-1"></i>${listing.quantity}
+                </small>
+            </div>
+            
+            <div class="mb-2">
+                <small class="text-muted">
+                    <i class="fas fa-map-marker-alt me-1"></i>${listing.pickup_location.substring(0, 50)}${listing.pickup_location.length > 50 ? '...' : ''}
+                </small>
+            </div>
+            
+            ${userLocation.lat && userLocation.lng ? `
+            <div class="mb-2">
+                <small class="text-info">
+                    <i class="fas fa-route me-1"></i>${calculateDistance(userLocation.lat, userLocation.lng, listing.latitude, listing.longitude).toFixed(1)} km away
+                </small>
+            </div>
+            ` : ''}
+            
+            <div class="mb-2">
+                <small class="text-warning">
+                    <i class="fas fa-clock me-1"></i>Expires: ${new Date(listing.expiry_time).toLocaleDateString()} ${new Date(listing.expiry_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </small>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">by ${listing.hotel_name}</small>
+                <button class="btn btn-primary btn-sm" onclick="viewDetails(${listing.id})">
+                    View Details
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function displayFoodCards(listings) {
+    const container = document.getElementById('foodCardsContainer');
+    
+    if (listings.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-search text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">No food listings found</h5>
+                <p class="text-muted">Try adjusting your search filters</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="row">
+            ${listings.map(listing => `
+                <div class="col-lg-6 mb-4">
+                    <div class="card food-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title mb-0">${listing.title}</h5>
+                                <span class="badge bg-success">Available</span>
+                            </div>
+                            
+                            ${listing.description ? `<p class="card-text text-muted mb-3">${listing.description.substring(0, 120)}${listing.description.length > 120 ? '...' : ''}</p>` : ''}
+                            
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-utensils me-1"></i>
+                                        <strong>Type:</strong> ${listing.food_type.charAt(0).toUpperCase() + listing.food_type.slice(1)}
+                                    </small>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-leaf me-1"></i>
+                                        <strong>Category:</strong> ${listing.category.charAt(0).toUpperCase() + listing.category.slice(1)}
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-weight me-1"></i>
+                                    <strong>Quantity:</strong> ${listing.quantity}
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    <strong>Pickup Location:</strong><br>
+                                    ${listing.pickup_location}
+                                </small>
+                            </div>
+                            
+                            ${userLocation.lat && userLocation.lng ? `
+                            <div class="mb-3">
+                                <small class="text-info">
+                                    <i class="fas fa-route me-1"></i>
+                                    <strong>Distance:</strong> ${calculateDistance(userLocation.lat, userLocation.lng, listing.latitude, listing.longitude).toFixed(1)} km away
+                                </small>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="mb-3">
+                                <small class="text-warning">
+                                    <i class="fas fa-clock me-1"></i>
+                                    <strong>Expires:</strong> ${new Date(listing.expiry_time).toLocaleDateString()} at ${new Date(listing.expiry_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </small>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-hotel me-1"></i>
+                                    by ${listing.hotel_name}
+                                </small>
+                                <a href="/food/${listing.id}" class="btn btn-primary">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function viewDetails(listingId) {
+    window.location.href = `/food/${listingId}`;
+}
+
+function filterListings() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const foodType = document.getElementById('foodTypeFilter').value;
+    const category = document.getElementById('categoryFilter').value;
+    
+    {% if current_user.is_authenticated and current_user.latitude and current_user.longitude %}
+    const maxDistance = document.getElementById('distanceFilter').value;
+    {% else %}
+    const maxDistance = null;
+    {% endif %}
+    
+    const filtered = foodListings.filter(listing => {
+        // Search filter
+        const matchesSearch = !searchTerm || 
+            listing.title.toLowerCase().includes(searchTerm) ||
+            listing.description.toLowerCase().includes(searchTerm) ||
+            listing.hotel_name.toLowerCase().includes(searchTerm);
+        
+        // Type filter
+        const matchesType = !foodType || listing.food_type === foodType;
+        
+        // Category filter
+        const matchesCategory = !category || listing.category === category;
+        
+        // Distance filter
+        let matchesDistance = true;
+        if (maxDistance && userLocation.lat && userLocation.lng) {
+            const distance = calculateDistance(
+                userLocation.lat, userLocation.lng,
+                listing.latitude, listing.longitude
+            );
+            matchesDistance = distance <= parseFloat(maxDistance);
+        }
+        
+        return matchesSearch && matchesType && matchesCategory && matchesDistance;
+    });
+    
+    displayListings(filtered);
+    displayFoodCards(filtered);
+    updateListingCount(filtered.length);
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('foodTypeFilter').value = '';
+    document.getElementById('categoryFilter').value = '';
+    {% if current_user.is_authenticated and current_user.latitude and current_user.longitude %}
+    document.getElementById('distanceFilter').value = '';
+    {% endif %}
+    
+    displayListings(foodListings);
+    displayFoodCards(foodListings);
+    updateListingCount(foodListings.length);
+}
+
+function updateListingCount(count) {
+    document.getElementById('listingCount').textContent = count;
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+</script>
+{% endblock %}

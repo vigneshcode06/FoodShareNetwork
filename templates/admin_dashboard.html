@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - ShareMeal{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="fas fa-shield-alt me-2"></i>Admin Dashboard</h2>
+            <p class="text-muted">Manage users, listings, and monitor platform activity</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-users text-primary" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ total_users }}</h4>
+                    <p class="text-muted mb-0">Total Users</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-utensils text-success" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ total_listings }}</h4>
+                    <p class="text-muted mb-0">Food Listings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-hand-holding-heart text-info" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ total_requests }}</h4>
+                    <p class="text-muted mb-0">Food Requests</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-percentage text-warning" style="font-size: 2rem;"></i>
+                    <h4 class="mt-2">{{ ((total_requests / total_listings * 100) | round(1)) if total_listings > 0 else 0 }}%</h4>
+                    <p class="text-muted mb-0">Request Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Tabs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#hotels">
+                                <i class="fas fa-hotel me-2"></i>Hotels ({{ hotels|length }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#collectors">
+                                <i class="fas fa-hands-helping me-2"></i>Collectors ({{ collectors|length }})
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <!-- Hotels Tab -->
+                        <div class="tab-pane fade show active" id="hotels">
+                            {% if hotels %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Hotel</th>
+                                            <th>Contact</th>
+                                            <th>Listings</th>
+                                            <th>Status</th>
+                                            <th>Joined</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for hotel in hotels %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ hotel.username }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ hotel.full_name }}</small>
+                                            </td>
+                                            <td>
+                                                {{ hotel.email }}
+                                                {% if hotel.phone %}
+                                                <br>
+                                                <small class="text-muted">{{ hotel.phone }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ hotel.food_listings|length }}</span>
+                                            </td>
+                                            <td>
+                                                {% if hotel.is_verified %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Verified
+                                                </span>
+                                                {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-clock me-1"></i>Unverified
+                                                </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small>{{ hotel.created_at.strftime('%Y-%m-%d') }}</small>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('verify_user', user_id=hotel.id) }}" 
+                                                   class="btn btn-sm {% if hotel.is_verified %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                                                   onclick="return confirm('{% if hotel.is_verified %}Unverify{% else %}Verify{% endif %} this user?')">
+                                                    {% if hotel.is_verified %}
+                                                    <i class="fas fa-times me-1"></i>Unverify
+                                                    {% else %}
+                                                    <i class="fas fa-check me-1"></i>Verify
+                                                    {% endif %}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-hotel text-muted" style="font-size: 3rem;"></i>
+                                <h5 class="mt-3 text-muted">No hotels registered</h5>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Collectors Tab -->
+                        <div class="tab-pane fade" id="collectors">
+                            {% if collectors %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Collector</th>
+                                            <th>Contact</th>
+                                            <th>Requests</th>
+                                            <th>Status</th>
+                                            <th>Joined</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for collector in collectors %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ collector.username }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ collector.full_name }}</small>
+                                            </td>
+                                            <td>
+                                                {{ collector.email }}
+                                                {% if collector.phone %}
+                                                <br>
+                                                <small class="text-muted">{{ collector.phone }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ collector.requests_made|length }}</span>
+                                            </td>
+                                            <td>
+                                                {% if collector.is_verified %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Verified
+                                                </span>
+                                                {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-clock me-1"></i>Unverified
+                                                </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small>{{ collector.created_at.strftime('%Y-%m-%d') }}</small>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('verify_user', user_id=collector.id) }}" 
+                                                   class="btn btn-sm {% if collector.is_verified %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                                                   onclick="return confirm('{% if collector.is_verified %}Unverify{% else %}Verify{% endif %} this user?')">
+                                                    {% if collector.is_verified %}
+                                                    <i class="fas fa-times me-1"></i>Unverify
+                                                    {% else %}
+                                                    <i class="fas fa-check me-1"></i>Verify
+                                                    {% endif %}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-hands-helping text-muted" style="font-size: 3rem;"></i>
+                                <h5 class="mt-3 text-muted">No collectors registered</h5>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-utensils me-2"></i>Recent Listings</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_listings %}
+                    {% for listing in recent_listings %}
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div>
+                            <h6 class="mb-1">{{ listing.title }}</h6>
+                            <small class="text-muted">by {{ listing.hotel.username }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{{ {
+                                'available': 'success',
+                                'requested': 'warning',
+                                'collected': 'info',
+                                'expired': 'danger'
+                            }[listing.status] }}">{{ listing.status.title() }}</span>
+                            <br>
+                            <small class="text-muted">{{ listing.created_at.strftime('%m/%d %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center">No recent listings</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-hand-holding-heart me-2"></i>Recent Requests</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_requests %}
+                    {% for request in recent_requests %}
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div>
+                            <h6 class="mb-1">{{ request.food_listing.title }}</h6>
+                            <small class="text-muted">by {{ request.collector.username }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{{ {
+                                'pending': 'warning',
+                                'approved': 'success',
+                                'rejected': 'danger',
+                                'collected': 'info'
+                            }[request.status] }}">{{ request.status.title() }}</span>
+                            <br>
+                            <small class="text-muted">{{ request.requested_at.strftime('%m/%d %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center">No recent requests</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
